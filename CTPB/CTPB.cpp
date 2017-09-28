@@ -472,15 +472,19 @@ int main()
 	int sbIndex = 0;								// index into weighted table
 	random_device rd;
 	mt19937 gen(rd());
-	SYSTEMTIME timeStamp;							// so we can display start and end time, and create output filename
+	SYSTEMTIME startTime;							// so we can display start and end time, and create output filename
+	SYSTEMTIME endTime;
+	long long msStartTime;
+	long long msEndTime;
 
-	GetLocalTime(&timeStamp);
+	GetLocalTime(&startTime);
+	msStartTime = startTime.wMilliseconds + 1000 * startTime.wSecond + 60 * 1000 * startTime.wMinute + 60 * 60 * 1000 * startTime.wHour;
 
 	betsize = gm1.getBasis();
 
 	// announce the game and get the game parameters (number of players)
 	cout << endl << "Cannonbeard's Treasure Picker with Multipliers math" << endl;
-	cout << "Starting at " << timeStamp.wMonth << "." << timeStamp.wDay << "  " << timeStamp.wHour << ":" << timeStamp.wMinute << ":" << timeStamp.wSecond << endl;
+	cout << "Starting at " << startTime.wMonth << "." << startTime.wDay << "  " << startTime.wHour << ":" << startTime.wMinute << ":" << startTime.wSecond << endl;
 	cout << "Math: " << gm1.getID() << "  Version: " << gm1.getVersion() << "   Paymodel: " << gm1.getPaymodel() << endl;
 	while (userInput != 'h' && userInput != 'i') {
 		cout << "Enter h for histo or i for interactive: ";
@@ -502,13 +506,13 @@ int main()
 		// create the log file and write game parameters
 		string fn = "CTPM";
 		ostringstream convert;
-		GetLocalTime(&timeStamp);
-		convert << "-" << timeStamp.wMonth << "-" << timeStamp.wDay << "-" << timeStamp.wYear << "-" << timeStamp.wHour << "-" << timeStamp.wMinute << "-" << timeStamp.wSecond << ".txt";
+		GetLocalTime(&startTime);
+		convert << "-" << startTime.wMonth << "-" << startTime.wDay << "-" << startTime.wYear << "-" << startTime.wHour << "-" << startTime.wMinute << "-" << startTime.wSecond << ".txt";
 		fn.append(convert.str());
 		ofstream outfile;
 		outfile.open(fn);
-		outfile << "CTPM_Interactive_GameMath" << endl << "Year_Month_Day " << timeStamp.wYear << " " << timeStamp.wMonth << " " << timeStamp.wDay << endl;
-		outfile << "Hour_Minute_Second " << timeStamp.wHour << " " << timeStamp.wMinute << " " << timeStamp.wSecond << endl;
+		outfile << "CTPM_Interactive_GameMath" << endl << "Year_Month_Day " << startTime.wYear << " " << startTime.wMonth << " " << startTime.wDay << endl;
+		outfile << "Hour_Minute_Second " << startTime.wHour << " " << startTime.wMinute << " " << startTime.wSecond << endl;
 		outfile << "MathID " << gm1.getID() << endl;
 		outfile << "Math_version " << gm1.getVersion() << endl;
 		outfile << "Paymodel " << gm1.getPaymodel() << endl;
@@ -606,7 +610,6 @@ int main()
 				cout << "Winner's payout is " << win << endl;
 
 				outfile.open(fn, ios::app);								// append to existing file
-
 				outfile << " winner_is_player " << winner << " win_is " << win << endl;
 				outfile.close();
 				break;
@@ -618,6 +621,13 @@ int main()
 				break;
 			case 'q':
 				cout << endl << "Thank you for playing, good-bye." << endl << endl;
+				GetLocalTime(&endTime);
+				msEndTime = endTime.wMilliseconds + 1000 * endTime.wSecond + 60 * 1000 * endTime.wMinute + 60 * 60 * 1000 * endTime.wHour;
+				outfile.open(fn, ios::app);								// append to existing file
+				outfile << "start_time_milliseconds " << msStartTime << endl;
+				outfile << "end_time_milliseconds " << msEndTime << endl;
+				outfile << "session_duration_milliseconds " << msEndTime - msStartTime << endl;
+				outfile.close();
 				break;
 			default:
 				cout << endl << "I don't understand that input. Please try again." << endl;
@@ -632,8 +642,10 @@ int main()
 		
 		Bins whoWon;					// count winners as a check
 		Bins handWins;					// count the hand wins
+		Bins raiseWins;
 		Bins bounties;					// count the ship bounties
 		Bins totalWins;					// count total payouts
+		Bins totalRaiseWins;
 		Bins shipCntrs;					// count values of ship bet accumulators at bounty
 
 		cout << endl << "Cannonbeard's Treasure Picker with Ship Bounties math bin histo" << endl;
@@ -656,13 +668,13 @@ int main()
 		// create the log file and write game parameters
 		string fn = gm1.getID();
 		ostringstream convert;
-		GetLocalTime(&timeStamp);
-		convert << "-" << timeStamp.wMonth << "-" << timeStamp.wDay << "-" << timeStamp.wYear << "-" << timeStamp.wHour << "-" << timeStamp.wMinute << "-" << timeStamp.wSecond << ".txt";
+		GetLocalTime(&startTime);
+		convert << "-" << startTime.wMonth << "-" << startTime.wDay << "-" << startTime.wYear << "-" << startTime.wHour << "-" << startTime.wMinute << "-" << startTime.wSecond << ".txt";
 		fn.append(convert.str());
 		ofstream outfile;
 		outfile.open(fn);
-		outfile << "CTPB_Bin_Histo" << endl << "Year_Month_Day " << timeStamp.wYear << " " << timeStamp.wMonth << " " << timeStamp.wDay << endl;
-		outfile << "Hour_Minute_Second " << timeStamp.wHour << " " << timeStamp.wMinute << " " << timeStamp.wSecond << endl;
+		outfile << "CTPB_Bin_Histo" << endl << "Year_Month_Day " << startTime.wYear << " " << startTime.wMonth << " " << startTime.wDay << endl;
+		outfile << "Hour_Minute_Second " << startTime.wHour << " " << startTime.wMinute << " " << startTime.wSecond << endl;
 		outfile << "MathID " << gm1.getID() << endl;
 		outfile << "Math_version " << gm1.getVersion() << endl;
 		outfile << "Paymodel " << gm1.getPaymodel() << endl;
@@ -709,7 +721,10 @@ int main()
 				// select winner
 				winner = dist1(gen) + 1;
 				whoWon.record(winner);
-				handWins.record(win);
+				if (betRaise)
+					raiseWins.record(win);
+				else
+					handWins.record(win);
 
 				// figure out if any ships were sunk
 				// get any multipliers
@@ -732,22 +747,38 @@ int main()
 						bounties.record(shipBounty);
 					}
 				}
-				totalWins.record(totalWin);
+				if (betRaise)
+					totalRaiseWins.record(totalWin);
+				else
+					totalWins.record(totalWin);
 		}
+		GetLocalTime(&endTime);
+		msEndTime = endTime.wMilliseconds + 1000 * endTime.wSecond + 60 * 1000 * endTime.wMinute + 60 * 60 * 1000 * endTime.wHour;
 		outfile.open(fn, ios::app);								// append to existing file
+		outfile << "start_time_milliseconds " << msStartTime << endl;
+		outfile << "end_time_milliseconds " << msEndTime << endl;
+		outfile << "session_duration_milliseconds " << msEndTime - msStartTime << endl;
 		outfile << "CoinIn " << coinIn << endl;
 		outfile << "CoinOut " << coinOut << endl;
 		outfile << "Winning_Player" << endl;
 		outfile.close();
 		whoWon.write(fn);
 		outfile.open(fn, ios::app);								// append to existing file
+		outfile << "Hand_Wins" << endl;
+		outfile.close();
+		handWins.write(fn);
+		outfile.open(fn, ios::app);								// append to existing file
+		outfile << "Raise_Wins" << endl;
+		outfile.close();
+		raiseWins.write(fn);
+		outfile.open(fn, ios::app);								// append to existing file
 		outfile << "Total_Wins" << endl;
 		outfile.close();
 		totalWins.write(fn);
 		outfile.open(fn, ios::app);								// append to existing file
-		outfile << "Hand_Wins" << endl;
+		outfile << "Total_Raise_Wins" << endl;
 		outfile.close();
-		handWins.write(fn);
+		totalRaiseWins.write(fn);
 		outfile.open(fn, ios::app);								// append to existing file
 		outfile << "Bounties" << endl;
 		outfile.close();
